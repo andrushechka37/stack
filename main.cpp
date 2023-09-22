@@ -2,11 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 
-// smart realloc with gisteresis
-
 typedef int elem_t;
 
-const int start_capacity = 80;
+const int start_capacity = 2;
 const int realloc_const = 2;
 
 enum errors {
@@ -16,102 +14,65 @@ enum errors {
     size_below_zero = 4,
     capacity_below_zero = 5
 };
-#define STACK_DUMP(stk) dump_stk(&stk, __FILE__, __LINE__, __func__)
 struct stack {
     elem_t * data;
     int size;
     int capacity;
 };
+int verificator_of_stack(stack * stk, char file[], int line, const char *func);
+#define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
 
-void dump_stk(stack * stk, char * file, int line, const char * func) {
-    printf("stack [%p]\n", stk);
-    printf("called from file %s\n", file);
-    printf("called from function %s\n", func);
-    printf("called from line %d\n", line);
-    printf("size = %d\n", stk->size);
-    printf("capacity = %d\n", stk->capacity);
-    printf("data [%p]\n", &stk->data);
-    for (int i = 0; i < stk->capacity; i++) {
-        printf("[%d] = %d\n", i, stk->data[i]);
-    }
-}
-int verificator_of_stack(stack * stk) {
-    if(stk == NULL) {
-        printf("stk_zero_pointer");
-        return stk_zero_pointer;
-    }
 
-    if (stk->size > stk->capacity) {
-        printf("size_bigger_capacity");
-        return size_bigger_capacity;
-    }
-
-    if (stk->capacity < 0) {
-        printf("capacity_below_zero");
-        return capacity_below_zero;
-    }
-
-    if (stk->size < 0) {
-        printf("size_below_zero");
-        return size_below_zero;
-    }
-    //if(//it was called from pop)
-    return 0;
-}
+void dump_stk(stack * stk, char file[], int line, const char * func);
 
 int stack_compression(stack * stk) {
-    stk->data = (elem_t *)realloc(stk->data, ((stk->capacity) / realloc_const) + 1);
+    verify(*stk);
+    stk->data = (elem_t *)realloc(stk->data, sizeof(elem_t) * (((stk->capacity) / realloc_const) + 1));
+    stk->capacity = (stk->capacity / realloc_const) + 1;
+    verify(*stk);
     return 0;
 }
 
 int stack_extension(stack * stk) {
-    printf("adress of data was %p", &stk->data);
-    stk->data = (elem_t *) realloc(stk->data, stk->capacity * realloc_const);
-    if(stk->data == NULL) {
-        printf("gg");
-        return -1;
-    }
-    printf("adress of data now %p", &stk->data);
+    verify(*stk);
+    printf("adress of data was %p\n", &stk->data);
+    stk->data = (elem_t *) realloc(stk->data, sizeof(elem_t) * (stk->capacity * realloc_const));
+    printf("adress of data now %p\n", &stk->data);
     stk->capacity *= realloc_const;
+    verify(*stk);
     return 0;
 }
 
 int stack_pop(stack * stk, elem_t * value) {
-    if (verificator_of_stack(stk) != 0) {
-        return -1;
-    }
-
+    verify(*stk);
     if (stk->size == 0) {
         printf("pop with zero size");
         return -1;
     }
 
     *value = stk->data[--stk->size];
-    stk->data[stk->size] = NAN;
+    stk->data[stk->size] = -999;
     if (stk->size < (stk->capacity) / 2) {
         stack_compression(stk);
     }
+    verify(*stk);
     return 0;
 }
 
 int stack_push(stack * stk, elem_t value) {
-    //if stack is full call extension
+    verify(*stk);
     if (stk->size == stk->capacity) {
-        printf("push call reaalock");
+        printf("push call reaalock\n");
         stack_extension(stk);
     }
-    // if (verificator_of_stack(stk) != 0) {
-    //     return -1;
-    // }
     stk->data[stk->size++] = value;
+    verify(*stk);
     return 0;
 }
 int stack_ctor(stack * stk) {
     stk->capacity = start_capacity;
     stk->size = 0;
     stk->data = (elem_t *)calloc(start_capacity, sizeof(elem_t));
-    stk->data[1] = 78;
-    stk->data[4] = NAN;
     return 0;
 }
 
@@ -120,11 +81,70 @@ int stack_ctor(stack * stk) {
 int main(void) {
     stack stk = {};
     stack_ctor(&stk);
-    stack_push(&stk, 12);
-    stack_push(&stk, 36);
-    for(int i = 0; i < 20; i++) {
+    for(int i = 0; i < 15; i++) {
         stack_push(&stk, i);
     }
-    STACK_DUMP(stk);
+    // dump_stk(&stk, " ", 1," ");
+    // for(int i = 15; i > 1; i--) {
+    //     int t = i;
+    //     stack_pop(&stk, &t);
+    //     printf("%d\n", t);
+    //     dump_stk(&stk, " ", 1," ");
+    // }
 
+}
+
+
+
+void dump_stk(stack * stk, char file[], int line, const char * func) {
+    printf("----------------------------------------------\n");
+    printf("stack [%p]\n", stk);
+    printf("called from file %s\n", file);
+    printf("called from function %s\n", func);
+    printf("called from line %d\n", line);
+    printf("size = %d\n", stk->size);
+    printf("capacity = %d\n", stk->capacity);
+    printf("data [%p]\n", &stk->data);
+    for (int i = 0; i < stk->capacity; i++) {
+        if (stk->data[i] == -999) {
+            printf("*[%d] = -999(POISON)\n", i);
+        } else {
+            printf(" [%d] = %d\n", i, stk->data[i]);
+        }
+    }
+}
+
+
+
+int verificator_of_stack(stack * stk, char file[], int line, const char * func) {
+    if(stk == NULL) {
+        printf("stk_zero_pointer");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return stk_zero_pointer;
+    }
+
+    if (stk->size > stk->capacity) {
+        printf("size_bigger_capacity");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return size_bigger_capacity;
+    }
+
+    if (stk->capacity < 0) {
+        printf("capacity_below_zero");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return capacity_below_zero;
+    }
+
+    if (stk->size < 0) {
+        printf("size_below_zero\n");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return size_below_zero;
+    }
+    //if(//it was called from pop)
+    //data 0
+    return 0;
 }
