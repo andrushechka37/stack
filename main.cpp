@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
+// if compilliation
+// 12 param
 typedef int elem_t;
 
 const int start_capacity = 2;
@@ -12,18 +13,23 @@ enum errors {
     stk_zero_pointer = 2,
     size_bigger_capacity = 3,
     size_below_zero = 4,
-    capacity_below_zero = 5
+    capacity_below_zero = 5,
+    dead_canary = 6
 };
 struct stack {
+    int left_canary;
+
     elem_t * data;
     int size;
     int capacity;
+
+    int right_canary;
 };
-int verificator_of_stack(stack * stk, char file[], int line, const char *func);
+int verificator_of_stack(stack * stk, const char *file, int line, const char *func);
 #define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
 
 
-void dump_stk(stack * stk, char file[], int line, const char * func);
+void dump_stk(stack * stk, const char *file, int line, const char * func);
 
 int stack_compression(stack * stk) {
     verify(*stk);
@@ -70,6 +76,8 @@ int stack_push(stack * stk, elem_t value) {
     return 0;
 }
 int stack_ctor(stack * stk) {
+    stk->left_canary = 0xDEADBEEF;
+    stk->right_canary = 0xDEADBEEF;
     stk->capacity = start_capacity;
     stk->size = 0;
     stk->data = (elem_t *)calloc(start_capacity, sizeof(elem_t));
@@ -84,19 +92,19 @@ int main(void) {
     for(int i = 0; i < 15; i++) {
         stack_push(&stk, i);
     }
-    // dump_stk(&stk, " ", 1," ");
-    // for(int i = 15; i > 1; i--) {
-    //     int t = i;
-    //     stack_pop(&stk, &t);
-    //     printf("%d\n", t);
-    //     dump_stk(&stk, " ", 1," ");
-    // }
+    dump_stk(&stk, " ", 1," ");
+    for(int i = 15; i > 1; i--) {
+        int t = i;
+        stack_pop(&stk, &t);
+        printf("%d\n", t);
+        dump_stk(&stk, " ", 1," ");
+    }
 
 }
 
 
 
-void dump_stk(stack * stk, char file[], int line, const char * func) {
+void dump_stk(stack * stk, const char *file, int line, const char * func) {
     printf("----------------------------------------------\n");
     printf("stack [%p]\n", stk);
     printf("called from file %s\n", file);
@@ -116,7 +124,21 @@ void dump_stk(stack * stk, char file[], int line, const char * func) {
 
 
 
-int verificator_of_stack(stack * stk, char file[], int line, const char * func) {
+int verificator_of_stack(stack * stk, const char *file, int line, const char * func) {
+    if(stk->left_canary != 0xDEADBEEF) {
+        printf("left canary of struct died");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return dead_canary;
+    }
+
+    if(stk->right_canary != 0xDEADBEEF) {
+        printf("right canary of struct died");
+        dump_stk(stk, file, line, func);
+        exit(-1);
+        return dead_canary;
+    }
+
     if(stk == NULL) {
         printf("stk_zero_pointer");
         dump_stk(stk, file, line, func);
