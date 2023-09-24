@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 // if compilliation
-// 12 param
 //dtor
 typedef int elem_t;
 
@@ -18,14 +17,17 @@ enum errors {
     dead_canary = 6
 };
 struct stack {
-    long int left_canary;
+    unsigned long long left_canary;
 
     elem_t * data;
     int size;
     int capacity;
 
-    long int right_canary;
+    unsigned long long  right_canary;
 };
+int put_canaries(stack * stk) {
+
+}
 int verificator_of_stack(stack * stk, const char *file, int line, const char *func);
 #define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
 
@@ -98,7 +100,6 @@ int main(void) {
     for(int i = 0; i < 15; i++) {
         stack_push(&stk, i);
     }
-    stk.data[0] = 11;
     dump_stk(&stk, " ", 1," ");
     for(int i = 15; i > 1; i--) {
         int t = i;
@@ -132,60 +133,49 @@ void dump_stk(stack * stk, const char *file, int line, const char * func) {
 
 
 int verificator_of_stack(stack * stk, const char *file, int line, const char * func) {
+    bool error = 0;
     if(stk->left_canary != 0xDEADBEEF) {
         printf("left canary of struct died\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return dead_canary;
+        error = 1;
     }
 
     if(stk->right_canary != 0xDEADBEEF) {
         printf("right canary of struct died\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return dead_canary;
+        error = 1;
     }
 
     if(stk->data[0] != 0xDEADBEEF) {
         printf("left canary of array died\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return dead_canary;
+        error = 1;
     }
 
     if(stk->data[stk->capacity - 1] != 0xDEADBEEF) {
         printf("right canary of array died\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return dead_canary;
+        error = 1;
     }
 
     if(stk == NULL) {
         printf("stk_zero_pointer\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return stk_zero_pointer;
+        error = 1;
     }
 
     if (stk->size > stk->capacity) {
         printf("size_bigger_capacity\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return size_bigger_capacity;
+        error = 1;
     }
 
     if (stk->capacity < 0) {
         printf("capacity_below_zero\n");
-        dump_stk(stk, file, line, func);
-        exit(-1);
-        return capacity_below_zero;
+        error = 1;
     }
 
     if (stk->size < 1) {
         printf("size_below_zero\n");
+        error = 1;
+    }
+    if(error == 1) {
         dump_stk(stk, file, line, func);
         exit(-1);
-        return size_below_zero;
     }
     //if(//it was called from pop)
     //data 0
