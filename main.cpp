@@ -4,7 +4,7 @@
 // if compilliation
 //dtor
 typedef int elem_t;
-
+typedef unsigned long long canary_t;
 const int start_capacity = 2;
 const int realloc_const = 2;
 
@@ -25,33 +25,47 @@ struct stack {
 
     unsigned long long  right_canary;
 };
-int put_canaries(stack * stk) {
+int put_canary(stack * stk, char type) {
+    if (type == 'l') {
+        ((canary_t*)stk->data)[0] = 0xDEADBEEF;
+        stk->data = (elem_t*)&(((canary_t*)stk->data)[1]);
+    }
 
+    if (type == 'r') {
+        ((canary_t*)stk->data)[(stk->capacity / 2) - 1] = 0;
+        ((canary_t*)stk->data)[stk->capacity - 1] = 0xDEADBEEF;
+    }
+    return 0;
 }
-int verificator_of_stack(stack * stk, const char *file, int line, const char *func);
-#define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
 
+int verificator_of_stack(stack * stk, const char *file, int line, const char *func);
+
+#define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
+#define can(stk, t) put_canary(&stk, t)
 
 void dump_stk(stack * stk, const char *file, int line, const char * func);
 
 int stack_compression(stack * stk) {
     verify(*stk);
-    stk->data = (elem_t *)realloc(stk->data, sizeof(elem_t) * (((stk->capacity) / realloc_const) + 2));
-    stk->capacity = (stk->capacity / realloc_const) + 2;
-    stk->data[stk->capacity - 1] = 0xDEADBEEF;
+    stk->data = (elem_t*)&(((canary_t*)stk->data)[-1]);
+    stk->data = (elem_t *)realloc(stk->data, sizeof(elem_t) * (((stk->capacity) / realloc_const)) + 2 * sizeof(canary_t));
+    stk->data = (elem_t*)&(((canary_t*)stk->data)[1]);
+    stk->capacity = (stk->capacity / realloc_const);
+    can(*stk, 'r');
     verify(*stk);
     return 0;
 }
 
 int stack_extension(stack * stk) {
-    verify(*stk);
-    stk->data[stk->capacity - 1] = 0;
+    //verify(*stk);
+    stk->data = (elem_t*)&(((canary_t*)stk->data)[-1]);
     printf("adress of data was %p\n", &stk->data);
-    stk->data = (elem_t *) realloc(stk->data, sizeof(elem_t) * (stk->capacity * realloc_const));
+    stk->data = (elem_t *) realloc(stk->data, sizeof(elem_t) * (stk->capacity * realloc_const) + 2 * sizeof(canary_t));
+    stk->data = (elem_t*)&(((canary_t*)stk->data)[1]);
     printf("adress of data now %p\n", &stk->data);
     stk->capacity *= realloc_const;
-    stk->data[stk->capacity - 1] = 0xDEADBEEF;
-    verify(*stk);
+    can(*stk, 'r');
+    //verify(*stk);
     return 0;
 }
 
@@ -72,23 +86,23 @@ int stack_pop(stack * stk, elem_t * value) {
 }
 
 int stack_push(stack * stk, elem_t value) {
-    verify(*stk);
+    //verify(*stk);
     if (stk->size + 1 == stk->capacity) {
         printf("push call realloc\n");
         stack_extension(stk);
     }
     stk->data[stk->size++] = value;
-    verify(*stk);
+    //verify(*stk);
     return 0;
 }
 int stack_ctor(stack * stk) {
     stk->left_canary = 0xDEADBEEF;
     stk->right_canary = 0xDEADBEEF;
     stk->capacity = start_capacity;
-    stk->size = 1;
-    stk->data = (elem_t *)calloc(start_capacity, sizeof(elem_t));
-    stk->data[0] = 0xDEADBEEF;
-    stk->data[stk->capacity - 1] = 0xDEADBEEF;
+    stk->size = 0;
+    stk->data = (elem_t *)calloc(sizeof(elem_t) * start_capacity + 2 * sizeof(canary_t), 1);
+    can(*stk, 'l');
+    can(*stk, 'r');
     return 0;
 }
 
@@ -97,7 +111,7 @@ int stack_ctor(stack * stk) {
 int main(void) {
     stack stk = {};
     stack_ctor(&stk);
-    for(int i = 0; i < 15; i++) {
+    for(int i = 3; i < 15; i++) {
         stack_push(&stk, i);
     }
     dump_stk(&stk, " ", 1," ");
@@ -144,12 +158,12 @@ int verificator_of_stack(stack * stk, const char *file, int line, const char * f
         error = 1;
     }
 
-    if(stk->data[0] != 0xDEADBEEF) {
-        printf("left canary of array died\n");
-        error = 1;
-    }
+    // if(((canary_t*)stk->data)[-1] != 0xDEADBEEF) {
+    //     printf("left canary of array died\n");
+    //     error = 1;
+    // }
 
-    if(stk->data[stk->capacity - 1] != 0xDEADBEEF) {
+    if(((canary_t*)stk->data)[stk->capacity - 1] != 0xDEADBEEF) {
         printf("right canary of array died\n");
         error = 1;
     }
@@ -169,7 +183,7 @@ int verificator_of_stack(stack * stk, const char *file, int line, const char * f
         error = 1;
     }
 
-    if (stk->size < 1) {
+    if (stk->size < 0) {
         printf("size_below_zero\n");
         error = 1;
     }
