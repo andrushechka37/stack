@@ -5,7 +5,7 @@
 //dtor
 typedef int elem_t;
 typedef unsigned long long canary_t;
-const int start_capacity = 2;
+const int start_capacity = 3;
 const int realloc_const = 2;
 
 enum errors {
@@ -32,8 +32,13 @@ int put_canary(stack * stk, char type) {
     }
 
     if (type == 'r') {
-        ((canary_t*)stk->data)[(stk->capacity / 2) - 1] = 0;
-        ((canary_t*)stk->data)[stk->capacity - 1] = 0xDEADBEEF;
+        //*(canary_t *)(stk->data + (stk->capacity / 2) - 2) = 0;
+        int fatnees_of_canary = sizeof(canary_t) / sizeof(elem_t);
+        for (int i = 0; i < fatnees_of_canary; i++) {
+            stk->data[stk->capacity + i] = 0;
+        }
+
+        *(canary_t *)(stk->data + stk->capacity) = 0xDEADBEEF;
     }
     return 0;
 }
@@ -47,7 +52,7 @@ void dump_stk(stack * stk, const char *file, int line, const char * func);
 
 int stack_compression(stack * stk) {
     verify(*stk);
-    stk->data = (elem_t*)&(((canary_t*)stk->data)[-1]);
+    stk->data = (elem_t *)&(((canary_t*)stk->data)[-1]);
     stk->data = (elem_t *)realloc(stk->data, sizeof(elem_t) * (((stk->capacity) / realloc_const)) + 2 * sizeof(canary_t));
     stk->data = (elem_t*)&(((canary_t*)stk->data)[1]);
     stk->capacity = (stk->capacity / realloc_const);
@@ -57,15 +62,15 @@ int stack_compression(stack * stk) {
 }
 
 int stack_extension(stack * stk) {
-    //verify(*stk);
+    verify(*stk);
     stk->data = (elem_t*)&(((canary_t*)stk->data)[-1]);
-    printf("adress of data was %p\n", &stk->data);
+    printf("adress of data was %p\n", stk->data);
     stk->data = (elem_t *) realloc(stk->data, sizeof(elem_t) * (stk->capacity * realloc_const) + 2 * sizeof(canary_t));
     stk->data = (elem_t*)&(((canary_t*)stk->data)[1]);
-    printf("adress of data now %p\n", &stk->data);
+    printf("adress of data now %p\n", stk->data);
     stk->capacity *= realloc_const;
     can(*stk, 'r');
-    //verify(*stk);
+    verify(*stk);
     return 0;
 }
 
@@ -86,13 +91,13 @@ int stack_pop(stack * stk, elem_t * value) {
 }
 
 int stack_push(stack * stk, elem_t value) {
-    //verify(*stk);
-    if (stk->size + 1 == stk->capacity) {
+    verify(*stk);
+    if (stk->size + 2 >= stk->capacity) {
         printf("push call realloc\n");
         stack_extension(stk);
     }
     stk->data[stk->size++] = value;
-    //verify(*stk);
+    verify(*stk);
     return 0;
 }
 int stack_ctor(stack * stk) {
@@ -115,7 +120,17 @@ int main(void) {
         stack_push(&stk, i);
     }
     dump_stk(&stk, " ", 1," ");
-    for(int i = 15; i > 1; i--) {
+    for(int i = 15; i > 5; i--) {
+        int t = i;
+        stack_pop(&stk, &t);
+        printf("%d\n", t);
+        dump_stk(&stk, " ", 1," ");
+    }
+    for(int i = 3; i < 15; i++) {
+        stack_push(&stk, i);
+    }
+    dump_stk(&stk, " ", 1," ");
+    for(int i = 15; i > 5; i--) {
         int t = i;
         stack_pop(&stk, &t);
         printf("%d\n", t);
@@ -134,7 +149,8 @@ void dump_stk(stack * stk, const char *file, int line, const char * func) {
     printf("called from line %d\n", line);
     printf("size = %d\n", stk->size);
     printf("capacity = %d\n", stk->capacity);
-    printf("data [%p]\n", &stk->data);
+    printf("data [%p]\n", stk->data);
+    printf("left canary of array = %llu\n", ((canary_t*)stk->data)[-1]);
     for (int i = 0; i < stk->capacity; i++) {
         if (stk->data[i] == -999) {
             printf("*[%d] = -999(POISON)\n", i);
@@ -142,6 +158,7 @@ void dump_stk(stack * stk, const char *file, int line, const char * func) {
             printf(" [%d] = %d\n", i, stk->data[i]);
         }
     }
+    printf("right canary of array = %llu\n", *(canary_t *)(stk->data + stk->capacity));
 }
 
 
@@ -158,12 +175,12 @@ int verificator_of_stack(stack * stk, const char *file, int line, const char * f
         error = 1;
     }
 
-    // if(((canary_t*)stk->data)[-1] != 0xDEADBEEF) {
-    //     printf("left canary of array died\n");
-    //     error = 1;
-    // }
+    if(((canary_t*)stk->data)[-1] != 0xDEADBEEF) {
+        printf("left canary of array died\n");
+        error = 1;
+    }
 
-    if(((canary_t*)stk->data)[stk->capacity - 1] != 0xDEADBEEF) {
+    if(*(canary_t *)(stk->data + stk->capacity) != 0xDEADBEEF) {
         printf("right canary of array died\n");
         error = 1;
     }
