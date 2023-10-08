@@ -14,6 +14,7 @@ int stack_ctor(stack * stk) {
     *(canary_t *)(stk->data + (stk->capacity)) = 0xDEADBEEF;
     stk->hash_data = calc_data(*stk);
     stk->hash_stack = calc_stack(*stk);
+    stk->data = (elem_t*)&(((canary_t*)stk->data)[-1]);
     return 0;
 }
 
