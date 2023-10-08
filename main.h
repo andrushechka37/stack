@@ -1,19 +1,27 @@
-#define canary 1
-#define dump_and_check 1
-#define hash 1
+#define canary 0
+#define dump_and_check 0
+#define hash 0
 
-#ifdef dump_and_check
+#if dump_and_check
 #define verify(stk) verificator_of_stack(&stk, __FILE__, __LINE__, __func__)
+#else
+#define verify(stk) ;
 #endif
 
-#ifdef canary
+#if canary
 #define can(stk, t) put_canary(&stk, t)
+#else
+#define can(stk, t) ;
 #endif
 
-#ifdef hash
+#if hash
 #define check_hash(stk) hash_check(&stk)
 #define calc_data(stk) hash_counter_data(&stk)
 #define calc_stack(stk) hash_counter_stack(&stk)
+#else
+#define check_hash(stk) ;
+#define calc_data(stk) 0;
+#define calc_stack(stk) 0;
 #endif
 
 
